@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, MetaData, Table, \
     Boolean, ForeignKey
 
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, Query
 from contextlib import contextmanager
 
 import os
@@ -303,11 +303,18 @@ class Db:
             if res:
                 id = res.id
                 register = res.register
+                
+                # need to check the Study and the wearable_id 
+                query = Query(Study).filter(Study.id==res.studi_id)
+                study = query.with_session(session).first()
+                
+                wearable = study.wearable_id
+                pass
             else:
                 id = 0
                 register = 0
 
-            return id, register
+            return id, register, wearable
 
     def check_userid(self, uat, userid):
         """

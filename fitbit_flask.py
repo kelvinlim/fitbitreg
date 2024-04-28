@@ -58,6 +58,7 @@ class UserCodeForm(FlaskForm):
 CLIENT_ID = config['CLIENT_ID']
 CLIENT_SECRET = config['CLIENT_SECRET']
 REDIRECT_URI = config['REDIRECT_URI']
+APP_PATH=config['APP_PATH']
 
 # Fitbit URLs
 AUTHORIZATION_URL = config['AUTHORIZATION_URL']
@@ -68,7 +69,7 @@ g_state = ''
 g_code_verifier = ''
 g_code_challenge = ''
 
-@app.route("/", methods=['GET', 'POST'])
+@app.route(f"{APP_PATH}/", methods=['GET', 'POST'])
 def index():
     
     global g_state, g_code_verifier, g_code_challenge
@@ -77,8 +78,8 @@ def index():
     message = ""
     if form.validate_on_submit():
         usercode = form.usercode.data
-        id, register = db.entry_code_exists(usercode)
-        if id and not register:
+        id, register, wearable = db.entry_code_exists(usercode)
+        if id and not register and wearable==2:
             # This is good entry code so get setup to go to fitbit site
             # the id exists and register=0
             # empty the form field
@@ -127,33 +128,18 @@ def index():
                 message = f"usercode {usercode} exists but has already been registered."
             elif  id == 0:
                 message = f"usercode {usercode} is not valid. Please recheck entry."
+            elif wearable != 2:
+                message = f"usercode {usercode} is not for Fitbit. Please recheck entry."
+            else:
+                message = f"usercode {usercode} - there is an error, please check code"
+
+
 
 
     return render_template('index_usercode.html', form=form, message=message)
 
-@app.route("/", methods=['GET', 'POST'])
-def home():
-    
-    global g_state, g_code_verifier, g_code_challenge
-    # Redirect user to Fitbit authorization URL
-    
-    # generate the three codes code_verifier, code_challenge, state
-    # code_verifier = generate_code_verifier(128)
-    # code_challenge =  generate_code_challenge(code_verifier)
-    g_code_verifier, g_code_challenge = pkce.generate_pkce_pair()
-    g_state = generate_state(256)
-    
-    URL=AUTHORIZATION_URL + '?response_type=code' + \
-        '&client_id=' + CLIENT_ID + \
-        '&scope=activity+cardio_fitness+electrocardiogram+heartrate+location+nutrition+oxygen_saturation+profile+respiratory_rate+settings+sleep+social+temperature+weight' + \
-        '&code_challenge=' + g_code_challenge + \
-        '&code_challenge_method=S256' + \
-        '&state=' + g_state + \
-        '&redirect_url=' + REDIRECT_URI 
-        
-    return redirect(URL)
 
-@app.route('/callback')
+@app.route(f'{APP_PATH}/callback')
 def callback():
     
     global g_state, g_code_verifier, g_code_challenge
@@ -194,9 +180,10 @@ def callback():
         return render_template("callback.html")
 
 
-@app.route("/privacy")
+@app.route(f"{APP_PATH}/privacy")
 def privacy():
    return render_template("privacy.html")
 
 if __name__ == '__main__':
-    app.run(debug=True,  host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
+    # app.run(debug=True,  host="0.0.0.0", port=5000)
