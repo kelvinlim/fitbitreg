@@ -1,0 +1,22 @@
+version: '3'
+services:
+  myservice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        db_name: ${db_name}
+        db_dialect: ${db_dialect}
+        db_user: ${db_user}
+        db_pw: ${db_pw}        
+        db_port: ${db_port}   
+        db_host: ${db_host}   
+        CLIENT_ID: ${CLIENT_ID}
+        CLIENT_SECRET: ${CLIENT_SECRET}
+        REDIRECT_URI: ${REDIRECT_URI}
+        AUTHORIZATION_URL: ${AUTHORIZATION_URL}
+        TOKEN_URL: ${TOKEN_URL}
+        SECRET_KEY: ${SECRET_KEY}
+
+    env_file:
+      - .env
