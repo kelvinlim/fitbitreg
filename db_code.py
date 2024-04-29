@@ -79,13 +79,13 @@ class Db:
     def __init__(self):
 
         # create the url for sqlalchemy
-        db_user = os.getenv('db_user')
-        db_pw = os.getenv('db_pw')
-        db_host = os.getenv('db_host')
-        db_name = os.getenv('db_name')
-        db_dialect = os.getenv('db_dialect')   
-        db_port = os.getenv('db_port')       
-        self.tz = os.getenv('tz')       
+        db_user = config['db_user']
+        db_pw = config['db_pw']
+        db_host = config['db_host']
+        db_name = config['db_name']
+        db_dialect = config['db_dialect']   
+        db_port = config['db_port']       
+        self.tz = config['tz']       
 
         # add port for cnc2
         self.url = f"{db_dialect}://{db_user}:{db_pw}@{db_host}:{db_port}/{db_name}"

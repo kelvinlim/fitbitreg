@@ -127,11 +127,11 @@ def index():
             if id and register:
                 message = f"usercode {usercode} exists but has already been registered."
             elif  id == 0:
-                message = f"usercode {usercode} is not valid. Please recheck entry."
+                message = f"usercode {usercode} is not a valid code. Please recheck entry."
             elif wearable != 2:
-                message = f"usercode {usercode} is not for Fitbit. Please recheck entry."
+                message = f"usercode {usercode} is not authorized for Fitbit. Please recheck entry."
             else:
-                message = f"usercode {usercode} - there is an error, please check code"
+                message = f"usercode {usercode} - there was an error, please check code"
 
 
 
