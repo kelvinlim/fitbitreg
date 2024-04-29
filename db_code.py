@@ -313,6 +313,7 @@ class Db:
             else:
                 id = 0
                 register = 0
+                wearable = 0
 
             return id, register, wearable
 
