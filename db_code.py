@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, MetaData, Table, \
     Boolean, ForeignKey
 
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, Query
+from sqlalchemy.orm import sessionmaker, relationship, Query, Session
 from contextlib import contextmanager
 
 import os
@@ -51,6 +51,8 @@ class Accounts(Base):
     study_info = Column(Text)
     subject_info = Column(Text)
     register = Column(Integer)
+    fb_refresh_token = Column(Text)
+    fb_scope = Column(Text)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     garmindata = relationship("Garmindata")
@@ -215,7 +217,48 @@ class Db:
    
                 session.commit()
 
-            pass                
+            pass 
+        
+    def update_fitbit_account(self, id, **kwargs):
+        """
+        Update the account specified by id, place state into the secret field
+        """
+
+        with Session(self.engine) as session:
+            row = session.query(Accounts).filter(Accounts.id==id).first()
+
+            if row != None:
+                # update the row
+                now = datetime.now(pytz.timezone(self.tz))
+                # dd/mm/YY H:M:S
+                dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+
+                # update the fields
+                row.updated_at = datetime.now(pytz.timezone('UTC'))
+                
+                for key, value in kwargs.items():
+                    setattr(row, key, value)
+   
+                session.commit()
+
+            pass 
+
+    def get_fitbit_account(self, id, **kwargs):
+        """
+        get the account specified by id, place state into the secret field
+        """
+        with Session(self.engine) as session:
+        #with self.session_scope() as session:
+            row = session.query(Accounts).filter(Accounts.id==id).first()
+            
+            if row != None:
+                
+                return row
+            else:
+                return None
+
+
+                       
     def new_uat(self, uat, secret, oauth_token):
         """
         Update the account with oauth_token with the uat and secret
