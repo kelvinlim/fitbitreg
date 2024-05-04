@@ -173,6 +173,8 @@ def callback():
         # also use the code to know what study
         db.update_fitbit_data(state_returned,
                               json_data = json.dumps(response),
+                              fb_scope = response.get('scope'),
+                              fb_refresh_token=response.get('refresh_token')
                               oauth_token = access_token,
                               userid = response.get('user_id'),
                               register = 1
