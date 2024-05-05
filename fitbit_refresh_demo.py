@@ -14,6 +14,7 @@ import requests
 import base64
 from pprint import pprint
 import json
+import datetime
 
 def refresh_access_token(client:dict ):
     
@@ -65,6 +66,66 @@ def refresh_access_token(client:dict ):
         print(f"Error refreshing token: {response.json()}")
 
     
+"""
+Define new method for accessing vo2max
+"""
+def get_vo2max(self,date):
+    """
+    Get the vo2max for specified day
+    
+    https://dev.fitbit.com/build/reference/web-api/cardio-fitness-score/get-vo2max-summary-by-date/
+    
+    /1/user/[user-id]/cardioscore/date/[date].json
+    
+    
+    """
+    
+    url = "{0}/{1}/user/-/cardioscore/date/{year:04d}-{month:02d}-{day:02d}.json".format(
+        *self._get_common_args(),
+        year=date.year,
+        month=date.month,
+        day=date.day
+    )
+    return self.make_request(url)
+
+def get_hrv_summary(self,date):
+    """
+    Get the vo2max for specified day
+    
+    https://dev.fitbit.com/build/reference/web-api/heartrate-variability/get-hrv-summary-by-date/
+    
+    /1/user/[user-id]/hrv/date/[date].json
+    
+    
+    """
+    
+    url = "{0}/{1}/user/-/hrv/date/{year:04d}-{month:02d}-{day:02d}.json".format(
+        *self._get_common_args(),
+        year=date.year,
+        month=date.month,
+        day=date.day
+    )
+    return self.make_request(url)
+
+
+def get_azm_summary(self,date, period='1d'):
+    """
+    Get the active zone minute for specified day
+    
+    https://dev.fitbit.com/build/reference/web-api/active-zone-minutes-timeseries/get-azm-timeseries-by-date/
+
+    /1/user/[user-id]/activities/active-zone-minutes/date/[date]/[period].json
+    
+    """
+    
+    url = "{0}/{1}/user/-/activities/active-zone-minutes/date/{year:04d}-{month:02d}-{day:02d}/{period}.json".format(
+        *self._get_common_args(),
+        year=date.year,
+        month=date.month,
+        day=date.day,
+        period=period
+    )
+    return self.make_request(url)
     
 # read the database
 
@@ -92,7 +153,7 @@ get_fitbit_account(id)
 update_fitbit_account(id, **kwargs)
 """
 
-id = 223
+id = 222
 row = db.get_fitbit_account(id)
 
 client_info = {}
@@ -105,6 +166,10 @@ if row != None:
 
 pass
 
+# add new method to class
+fitbit.Fitbit.get_vo2max = get_vo2max
+fitbit.Fitbit.get_hrv_summary = get_hrv_summary
+fitbit.Fitbit.get_azm_summary = get_azm_summary
 # authorized
 
 try:
@@ -118,7 +183,33 @@ except Exception as e:
     exit(1)
 
 try: 
-    sleepData = authd_client.sleep(date='2024-03-2')
+    fitbitData = {}
+    fitbitData['dates'] = {}
+    fitbitData['device'] = authd_client.get_devices()
+    isoDate = '2024-05-03'
+    dtObj = datetime.date.fromisoformat(isoDate)
+    sleepData = authd_client.get_sleep(dtObj)
+    # drop the minuteData
+    del sleepData['sleep'][0]['minuteData']
+    
+    # create dictionary for isoDate
+    fitbitData['dates'][isoDate] = {}
+    fitbitData['dates'][isoDate]['sleep'] = sleepData['sleep'][0]
+    fitbitData['dates'][isoDate].update(authd_client.get_vo2max(dtObj))
+    fitbitData['dates'][isoDate].update(authd_client.get_hrv_summary(dtObj))
+    fitbitData['dates'][isoDate].update(authd_client.get_azm_summary(dtObj))    
+    # time series for steps
+    # fitbitData.update(authd_client.time_series('activities/steps', user_id=None, base_date=isoDate,
+    #                 period='1d',  # max, 7d 
+    #                 end_date=None))
+    
+    # get different activities
+    for resource in ['activityCalories','calories','caloriesBMR','distance','elevation','floors',\
+                     'minutesSedentary','minutesLightlyActive','minutesFairlyActive','minutesVeryActive','steps']:
+        fitbitData['dates'][isoDate].update(authd_client.time_series(f"activities/{resource}", user_id=None, base_date=isoDate,
+                        period='1d',  # max, 7d 
+                        end_date=None))    
+        pass
 except Exception as e:
     print(f"Error: {e}")
     # check if Access token expired
@@ -132,5 +223,5 @@ except Exception as e:
         pass
     exit(1)    
 
-pprint(sleepData)
+pprint(fitbitData)
 pass
