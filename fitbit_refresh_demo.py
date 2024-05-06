@@ -15,6 +15,7 @@ import base64
 from pprint import pprint
 import json
 import datetime
+#from datetime import datetime, timedelta
 
 def refresh_access_token(client:dict ):
     
@@ -126,6 +127,41 @@ def get_azm_summary(self,date, period='1d'):
         period=period
     )
     return self.make_request(url)
+
+
+def get_hrv_intra(self, startDate, endDate=None):
+    """
+    Get the hrv intraday for  specified day or range if endDate is given
+    
+
+    /1/user/-/hrv/date/{startDate}/{endDate}.json
+
+    /1/user/-/hrv/date/{date}/all.json
+    
+    """
+    
+    if endDate != None:
+        # use startDate and endDate
+        url = "{0}/{1}/user/-/activities/active-zone-minutes/date/{year:04d}-{month:02d}-{day:02d}/{year2:04d}-{month2:02d}-{day2:02d}/all.json".format(
+            *self._get_common_args(),
+            year=startDate.year,
+            month=startDate.month,
+            day=startDate.day,
+            year2=endDate.year,
+            month2=endDate.month,
+            day2=endDate.day
+        )
+    
+    else:
+        # just use startDate   
+        url = "{0}/{1}/user/-/hrv/date/{year:04d}-{month:02d}-{day:02d}/all.json".format(
+            *self._get_common_args(),
+            year=startDate.year,
+            month=startDate.month,
+            day=startDate.day
+        )
+    
+    return self.make_request(url)
     
 # read the database
 
@@ -153,7 +189,7 @@ get_fitbit_account(id)
 update_fitbit_account(id, **kwargs)
 """
 
-id = 222
+id = 221
 row = db.get_fitbit_account(id)
 
 client_info = {}
@@ -170,6 +206,8 @@ pass
 fitbit.Fitbit.get_vo2max = get_vo2max
 fitbit.Fitbit.get_hrv_summary = get_hrv_summary
 fitbit.Fitbit.get_azm_summary = get_azm_summary
+fitbit.Fitbit.get_hrv_intra = get_hrv_intra
+
 # authorized
 
 try:
@@ -187,29 +225,49 @@ try:
     fitbitData['dates'] = {}
     fitbitData['device'] = authd_client.get_devices()
     isoDate = '2024-05-03'
-    dtObj = datetime.date.fromisoformat(isoDate)
-    sleepData = authd_client.get_sleep(dtObj)
-    # drop the minuteData
-    del sleepData['sleep'][0]['minuteData']
     
-    # create dictionary for isoDate
-    fitbitData['dates'][isoDate] = {}
-    fitbitData['dates'][isoDate]['sleep'] = sleepData['sleep'][0]
-    fitbitData['dates'][isoDate].update(authd_client.get_vo2max(dtObj))
-    fitbitData['dates'][isoDate].update(authd_client.get_hrv_summary(dtObj))
-    fitbitData['dates'][isoDate].update(authd_client.get_azm_summary(dtObj))    
-    # time series for steps
-    # fitbitData.update(authd_client.time_series('activities/steps', user_id=None, base_date=isoDate,
-    #                 period='1d',  # max, 7d 
-    #                 end_date=None))
+    # Set the start and end dates
+    end_date = datetime.datetime.now()
+    start_date = end_date - datetime.timedelta(weeks=3)
+
+    # for isoDate in ['2024-05-01','2024-05-02','2024-05-03', '2024-05-04']:
+    for isoDate in (start_date + datetime.timedelta(days=n) for n in range((end_date - start_date).days)):
+        #dtObj = datetime.date.fromisoformat(isoDate.date())
+        dtObj = isoDate.date()
+        isoDateStr = dtObj.isoformat()
+        
+        print(isoDateStr)
+        
+        sleepData = authd_client.get_sleep(dtObj)
+        # drop the minuteData
+        # del sleepData['sleep'][0]['minuteData']
+        
+        # create dictionary for isoDateStr
+        fitbitData['dates'][isoDateStr] = {}
+        fitbitData['dates'][isoDateStr]['sleep'] = sleepData # sleepData['sleep'][0]
+        fitbitData['dates'][isoDateStr].update(authd_client.get_vo2max(dtObj))
+        fitbitData['dates'][isoDateStr].update(authd_client.get_hrv_summary(dtObj))
+        fitbitData['dates'][isoDateStr].update(authd_client.get_azm_summary(dtObj))  
+        #fitbitData['dates'][isoDate].update(authd_client.get_hrv_intra(dtObj))  
+      
+        # time series for steps
+        # fitbitData.update(authd_client.time_series('activities/steps', user_id=None, base_date=isoDate,
+        #                 period='1d',  # max, 7d 
+        #                 end_date=None))
+        
+        # get different activities
+        for resource in ['activityCalories','calories','caloriesBMR','distance','elevation','floors',\
+                        'minutesSedentary','minutesLightlyActive','minutesFairlyActive','minutesVeryActive','steps']:
+            fitbitData['dates'][isoDateStr].update(authd_client.time_series(f"activities/{resource}", user_id=None, base_date=isoDate,
+                            period='1d',  # max, 7d 
+                            end_date=None))    
+            pass
+        
+        # save json to a file
+        jsonfile = f"case_{id}_fitbit.json"
+        with open(jsonfile, 'w') as fp:
+            json.dump(fitbitData, fp, indent=4)
     
-    # get different activities
-    for resource in ['activityCalories','calories','caloriesBMR','distance','elevation','floors',\
-                     'minutesSedentary','minutesLightlyActive','minutesFairlyActive','minutesVeryActive','steps']:
-        fitbitData['dates'][isoDate].update(authd_client.time_series(f"activities/{resource}", user_id=None, base_date=isoDate,
-                        period='1d',  # max, 7d 
-                        end_date=None))    
-        pass
 except Exception as e:
     print(f"Error: {e}")
     # check if Access token expired
@@ -221,7 +279,6 @@ except Exception as e:
         
         ddict = refresh_access_token(client_info)
         pass
-    exit(1)    
+    exit(0)    
 
-pprint(fitbitData)
 pass
