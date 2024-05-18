@@ -2,6 +2,9 @@
 
 flask app for registration of fitbit user for sharing data
 
+Note: be sure to end url with a /
+
+e.g. https://lnpipapp2.med.umn.edu/fitbitrec/
 
 ## Need config info on dockerfile
 
