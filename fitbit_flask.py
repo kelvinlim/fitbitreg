@@ -174,7 +174,7 @@ def callback():
         db.update_fitbit_data(state_returned,
                               json_data = json.dumps(response),
                               fb_scope = response.get('scope'),
-                              fb_refresh_token=response.get('refresh_token')
+                              fb_refresh_token=response.get('refresh_token'),
                               oauth_token = access_token,
                               userid = response.get('user_id'),
                               register = 1
@@ -187,5 +187,5 @@ def privacy():
    return render_template("privacy.html")
 
 if __name__ == '__main__':
-    app.run(debug=False, host="0.0.0.0", port=5000)
-    # app.run(debug=True,  host="0.0.0.0", port=5000)
+    #app.run(debug=False, host="0.0.0.0", port=5000)
+    app.run(debug=True,  host="0.0.0.0", port=5000)
