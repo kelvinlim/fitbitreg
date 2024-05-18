@@ -10,7 +10,7 @@
 
 
 {% block title %}
-Garmin Authorization
+Fitbit Authorization
 {% endblock %}
 
 
@@ -29,9 +29,8 @@ Garmin Authorization
       {{ wtf.quick_form(form) }}
 
       <p class="pt-5"><strong>{{ message }}</strong></p>
-
     </div>
+    <p class="pt-5">Version: {{ version}}</p>
   </div>
 </div>
-
 {% endblock %}

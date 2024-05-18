@@ -22,7 +22,10 @@ from db_code import Db
 # setup the db
 db = Db()
 
-version="0.5.0"
+# Define the version information
+__version_info__ = ('1', '0', '0')
+__version__ = '.'.join(__version_info__)
+
 config = dotenv_values(".env")
 
 # def generate_code_verifier(length: int) -> str:
@@ -72,10 +75,11 @@ g_code_challenge = ''
 @app.route(f"{APP_PATH}/", methods=['GET', 'POST'])
 def index():
     
-    global g_state, g_code_verifier, g_code_challenge
+    global g_state, g_code_verifier, g_code_challenge, __version__
 
     form = UserCodeForm()
     message = ""
+    version = __version__
     if form.validate_on_submit():
         usercode = form.usercode.data
         id, register, wearable = db.entry_code_exists(usercode)
@@ -136,7 +140,7 @@ def index():
 
 
 
-    return render_template('index_usercode.html', form=form, message=message)
+    return render_template('index_usercode.html', form=form, message=message, version=version)
 
 
 @app.route(f'{APP_PATH}/callback')
