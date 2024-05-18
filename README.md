@@ -9,9 +9,9 @@ e.g. https://lnpipapp2.med.umn.edu/fitbitrec/
 ## Need config info on dockerfile
 
 ```
-podman build -t fitbitreg .
+sudo podman build -t fitbitreg .
 
-podman run -d -p 5000:5000 --restart unless-stopped fitbitreg
+sudo podman run -d -p 5000:5000 --restart unless-stopped fitbitreg
 
 ```
 
