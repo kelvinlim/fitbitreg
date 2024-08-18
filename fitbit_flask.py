@@ -23,7 +23,7 @@ from db_code import Db
 db = Db()
 
 # Define the version information
-__version_info__ = ('1', '0', '0')
+__version_info__ = ('1', '0', '1')
 __version__ = '.'.join(__version_info__)
 
 config = dotenv_values(".env")
@@ -191,5 +191,5 @@ def privacy():
    return render_template("privacy.html")
 
 if __name__ == '__main__':
-    app.run(debug=False, host="0.0.0.0", port=5000)
-    # app.run(debug=True,  host="0.0.0.0", port=5000)
+    #app.run(debug=True, host="0.0.0.0", port=5000)  # production with container
+    app.run(debug=True,  host="0.0.0.0", port=5010)  # debugging
