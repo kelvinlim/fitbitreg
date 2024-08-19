@@ -37,12 +37,12 @@ To copy an existing container from system a to system b (to get around the pip e
 
 1. Save
 
-        podman save -o my_container.tar my_container_image
+        podman save -o my_container.tar daae
 
 2. Transfer
 
-        scp my_container.tar user@systemB:/path/to/destination
+        scp my_container.tar kolim@lnpitask.ahc.umn.edu:
 
 3. Load
 
-        podman load -i /path/to/destination/my_container.tar
+        podman load -i my_container.tar
