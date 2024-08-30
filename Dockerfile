@@ -1,9 +1,9 @@
-FROM python:3.12
+FROM python:3.8
 WORKDIR /app
 
 # environment needed for proxy server on ahc servers
-#ENV HTTP_PROXY="http://ctsigate0.ahc.umn.edu:3128" 
-#ENV HTTPS_PROXY="http://ctsigate0.ahc.umn.edu:3128"
+ENV HTTP_PROXY="http://ctsigate.ahc.umn.edu:3128" 
+ENV HTTPS_PROXY="http://ctsigate.ahc.umn.edu:3128"
 
 # upgrade pip
 RUN pip install --upgrade pip
