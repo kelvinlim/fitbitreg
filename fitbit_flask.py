@@ -191,5 +191,6 @@ def privacy():
    return render_template("privacy.html")
 
 if __name__ == '__main__':
-    #app.run(debug=True, host="0.0.0.0", port=5000)  # production with container
-    app.run(debug=True,  host="0.0.0.0", port=5000)  # debugging
+    app.run(debug=True, host="0.0.0.0", port=5010)  # production with container
+    # app.run(debug=True, host="0.0.0.0", port=5000)  # production with container
+    #app.run(debug=True,  host="127.0.0.1", port=5000)  # debugging

@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM python:3.9
 WORKDIR /app
 
 # environment needed for proxy server on ahc servers
