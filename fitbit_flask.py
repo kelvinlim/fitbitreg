@@ -23,8 +23,13 @@ from db_code import Db
 db = Db()
 
 # Define the version information
-__version_info__ = ('1', '0', '1')
+__version_info__ = ('2', '0', '0')
 __version__ = '.'.join(__version_info__)
+
+version_history = \
+"""
+2.0.0 - initial version 2.0, to support fitbit subscription  
+"""
 
 config = dotenv_values(".env")
 
