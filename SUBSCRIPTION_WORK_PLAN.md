@@ -37,13 +37,31 @@ CREATE TABLE fitbit_subscriptions (
 );
 ```
 
-#### 1.2 Add Subscription Fields to Accounts Table
+#### 1.2 Create Fitbit Data Storage Table
+```sql
+CREATE TABLE fitbitdata (
+    id INTEGER PRIMARY KEY,
+    account_id INTEGER REFERENCES accounts(id),
+    subscription_id INTEGER REFERENCES fitbit_subscriptions(id),
+    collection_type VARCHAR(100) NOT NULL,  -- 'activities', 'sleep', 'heart', etc.
+    data_date DATE NOT NULL,               -- Date of the data
+    data_type VARCHAR(100),                -- Specific data type (e.g., 'steps', 'heart_rate_zones')
+    raw_data JSON,                         -- Complete raw data from Fitbit API
+    processed_data JSON,                   -- Processed/cleaned data
+    data_source VARCHAR(50) DEFAULT 'subscription', -- 'subscription', 'manual', 'polling'
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(account_id, collection_type, data_date, data_type)
+);
+```
+
+#### 1.3 Add Subscription Fields to Accounts Table
 ```sql
 ALTER TABLE accounts ADD COLUMN subscription_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE accounts ADD COLUMN webhook_secret VARCHAR(255);
 ```
 
-#### 1.3 Create Notification Log Table
+#### 1.4 Create Notification Log Table
 ```sql
 CREATE TABLE subscription_notifications (
     id INTEGER PRIMARY KEY,
@@ -64,6 +82,9 @@ CREATE TABLE subscription_notifications (
 - `get_user_subscriptions(account_id)`
 - `update_subscription_status(subscription_id, is_active)`
 - `log_notification(subscription_id, notification_data)`
+- `store_fitbit_data(account_id, collection_type, data_date, data_type, raw_data, processed_data)`
+- `get_fitbit_data(account_id, collection_type, start_date, end_date)`
+- `update_fitbit_data(data_id, raw_data, processed_data)`
 
 #### 2.2 Fitbit API Integration
 - Create `fitbit_subscription_manager.py` module
@@ -76,6 +97,13 @@ CREATE TABLE subscription_notifications (
   - `body`
   - `nutrition`
   - `weight`
+
+#### 2.3 Data Processing Module
+- Create `fitbit_data_processor.py` module
+- Implement data fetching from Fitbit API based on notifications
+- Data parsing and normalization for different collection types
+- Data validation and error handling
+- Support for incremental data updates
 
 ### Phase 3: Flask Routes Implementation
 **Priority: High | Estimated Time: 3-4 hours**
@@ -95,10 +123,18 @@ def fitbit_webhook():
     # Handle incoming Fitbit notifications
     # Verify signature
     # Process notification
+    # Fetch and store new data
     # Update user data
 ```
 
-#### 3.3 User Interface Routes
+#### 3.3 Data Processing Routes
+```python
+@app.route(f"{APP_PATH}/data/<collection_type>", methods=['GET'])
+@app.route(f"{APP_PATH}/data/<collection_type>/<date>", methods=['GET'])
+@app.route(f"{APP_PATH}/data/refresh/<collection_type>", methods=['POST'])
+```
+
+#### 3.4 User Interface Routes
 ```python
 @app.route(f"{APP_PATH}/manage-subscriptions")
 @app.route(f"{APP_PATH}/subscription-history")
@@ -166,18 +202,49 @@ def fitbit_webhook():
 
 ## Implementation Details
 
+### Data Processing Workflow
+1. **Notification Received**: Fitbit sends webhook notification
+2. **Verification**: Verify HMAC signature for security
+3. **Data Fetching**: Use stored OAuth token to fetch data from Fitbit API
+4. **Data Processing**: Parse and normalize data based on collection type
+5. **Data Storage**: Store both raw and processed data in `fitbitdata` table
+6. **Notification Logging**: Log the notification for audit purposes
+
 ### Fitbit API Endpoints to Implement
 1. **Create Subscription**: `POST /1/user/-/{collection-path}/apiSubscriptions/{subscription-id}.json`
 2. **Delete Subscription**: `DELETE /1/user/-/{collection-path}/apiSubscriptions/{subscription-id}.json`
 3. **List Subscriptions**: `GET /1/user/-/{collection-path}/apiSubscriptions.json`
+4. **Fetch Data**: `GET /1/user/{user-id}/{collection-path}/date/{date}.json`
 
 ### Collection Paths to Support
-- `activities` - Activity data
-- `sleep` - Sleep data
-- `heart` - Heart rate data
-- `body` - Body measurements
-- `nutrition` - Nutrition data
-- `weight` - Weight data
+- `activities` - Activity data (steps, calories, distance, active minutes)
+- `sleep` - Sleep data (sleep stages, duration, efficiency)
+- `heart` - Heart rate data (resting HR, HR zones, HR variability)
+- `body` - Body measurements (weight, BMI, body fat)
+- `nutrition` - Nutrition data (calories, water, food logs)
+- `weight` - Weight data (daily weight measurements)
+
+### Data Processing by Collection Type
+
+#### Activities Data
+- **Raw Data**: Complete activity summary from Fitbit API
+- **Processed Data**: Extracted metrics (steps, calories, active minutes, distance)
+- **Data Types**: `daily_summary`, `intraday_steps`, `intraday_calories`
+
+#### Sleep Data
+- **Raw Data**: Complete sleep log with stages and details
+- **Processed Data**: Sleep efficiency, duration, stage breakdown
+- **Data Types**: `sleep_log`, `sleep_stages`, `sleep_efficiency`
+
+#### Heart Rate Data
+- **Raw Data**: Heart rate zones, resting HR, HR variability
+- **Processed Data**: Normalized HR metrics and trends
+- **Data Types**: `heart_rate_zones`, `resting_heart_rate`, `hrv_data`
+
+#### Body/Nutrition/Weight Data
+- **Raw Data**: Complete measurement data
+- **Processed Data**: Normalized measurements and trends
+- **Data Types**: `weight_log`, `body_fat`, `bmi`, `nutrition_log`
 
 ### Webhook Payload Structure
 ```json
@@ -206,10 +273,13 @@ SUBSCRIPTION_ENABLED=true
 ## Success Criteria
 - [ ] Users can enable/disable subscriptions for different data types
 - [ ] Real-time notifications are received and processed
-- [ ] Data is automatically updated when notifications arrive
-- [ ] Admin can monitor subscription status
+- [ ] Data is automatically fetched and stored when notifications arrive
+- [ ] Both raw and processed data are stored in `fitbitdata` table
+- [ ] Data can be queried by collection type, date range, and data type
+- [ ] Admin can monitor subscription status and data storage
 - [ ] Error handling and logging are comprehensive
 - [ ] Performance is maintained under load
+- [ ] Data integrity is maintained with proper validation
 
 ## Risk Mitigation
 - Implement graceful degradation if subscriptions fail
@@ -219,10 +289,11 @@ SUBSCRIPTION_ENABLED=true
 - Backup and recovery procedures
 
 ## Timeline Estimate
-**Total Estimated Time: 20-25 hours**
-- Phase 1-3: 9-12 hours (Core functionality)
+**Total Estimated Time: 25-30 hours**
+- Phase 1-3: 12-15 hours (Core functionality + Data processing)
 - Phase 4-5: 5-7 hours (UI and Security)
 - Phase 6-7: 5-6 hours (Testing and Deployment)
+- Additional 3-5 hours for data processing and storage implementation
 
 ## Next Steps
 1. Review and approve this work plan
