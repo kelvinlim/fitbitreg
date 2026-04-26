@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from flask import Flask, render_template, url_for, redirect, send_file, request, Response
+from flask import Flask, render_template, url_for, redirect, send_file, request, Response, session
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
@@ -23,7 +23,7 @@ from db_code import Db
 db = Db()
 
 # Define the version information
-__version_info__ = ('1', '0', '1')
+__version_info__ = ('1', '0', '2')
 __version__ = '.'.join(__version_info__)
 
 config = dotenv_values(".env")
@@ -67,15 +67,12 @@ APP_PATH=config['APP_PATH']
 AUTHORIZATION_URL = config['AUTHORIZATION_URL']
 TOKEN_URL = config['TOKEN_URL']
 
-# global variables
-g_state = ''
-g_code_verifier = ''
-g_code_challenge = ''
+# Primary key of the Fitbit row in garmin_wearable (owned by garmin_django).
+# Configured via .env so the magic number isn't buried in code.
+FITBIT_WEARABLE_ID = int(config['FITBIT_WEARABLE_ID'])
 
 @app.route(f"{APP_PATH}/", methods=['GET', 'POST'])
 def index():
-    
-    global g_state, g_code_verifier, g_code_challenge, __version__
 
     form = UserCodeForm()
     message = ""
@@ -83,27 +80,31 @@ def index():
     if form.validate_on_submit():
         usercode = form.usercode.data
         id, register, wearable = db.entry_code_exists(usercode)
-        if id and not register and wearable==2:
+        if id and not register and wearable == FITBIT_WEARABLE_ID:
             # This is good entry code so get setup to go to fitbit site
             # the id exists and register=0
             # empty the form field
             form.usercode.data = ""
-            
-            # generate the three codes g_code_verifier, g_code_challenge, g_state
-            g_code_verifier, g_code_challenge = pkce.generate_pkce_pair()
-            g_state = generate_state(256)
 
-            # save the g_state for this id in the uat so we can match it later to add the 
-            # json_data and oauth_token
-            db.update_fitbit_state(id, g_state)
-            
+            # PKCE verifier is stashed in the signed Flask session so it
+            # survives the redirect to Fitbit and back without clobbering
+            # other concurrent users (the previous module-global approach
+            # broke under concurrency and didn't survive a restart).
+            # `state` is still persisted to accounts.secret so the /callback
+            # handler can look up which row to update from the returned state.
+            code_verifier, code_challenge = pkce.generate_pkce_pair()
+            state = generate_state(256)
+
+            session['fb_code_verifier'] = code_verifier
+            db.update_fitbit_state(id, state)
+
             URL=AUTHORIZATION_URL + '?response_type=code' + \
                 '&client_id=' + CLIENT_ID + \
                 '&scope=activity+cardio_fitness+electrocardiogram+heartrate+location+nutrition+oxygen_saturation+profile+respiratory_rate+settings+sleep+social+temperature+weight' + \
-                '&code_challenge=' + g_code_challenge + \
+                '&code_challenge=' + code_challenge + \
                 '&code_challenge_method=S256' + \
-                '&state=' + g_state + \
-                '&redirect_url=' + REDIRECT_URI 
+                '&state=' + state + \
+                '&redirect_url=' + REDIRECT_URI
             
             # send to the fitbit site to authorize
             return redirect(URL)   
@@ -132,7 +133,7 @@ def index():
                 message = f"usercode {usercode} exists but has already been registered."
             elif  id == 0:
                 message = f"usercode {usercode} is not a valid code. Please recheck entry."
-            elif wearable != 2:
+            elif wearable != FITBIT_WEARABLE_ID:
                 message = f"usercode {usercode} is not authorized for Fitbit. Please recheck entry."
             else:
                 message = f"usercode {usercode} - there was an error, please check code"
@@ -145,16 +146,18 @@ def index():
 
 @app.route(f'{APP_PATH}/callback')
 def callback():
-    
-    global g_state, g_code_verifier, g_code_challenge
 
     # Get authorization code from response
     code = request.args.get('code')
     state_returned = request.args.get('state')
-    
-    # does it match the state we sent?
-    if g_state != state_returned:
-        print(f"Error: no match on state {state_returned}")
+
+    # The PKCE verifier was stashed in the user's signed session in index();
+    # pop it so it isn't reused. If absent, the user never went through
+    # index() in this browser (or the session expired) — reject.
+    code_verifier = session.pop('fb_code_verifier', None)
+    if code_verifier is None:
+        print(f"Error: no code_verifier in session for state {state_returned}")
+        return "Invalid session", 400
     else:
         # Encode the client ID and secret for basic authentication
         credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
@@ -168,7 +171,7 @@ def callback():
             'grant_type': 'authorization_code',
             'redirect_uri': REDIRECT_URI,
             'code': code,
-            'code_verifier': g_code_verifier
+            'code_verifier': code_verifier
         }
         response = requests.post(TOKEN_URL, data=data, headers=headers).json()
         access_token = response.get('access_token')

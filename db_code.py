@@ -71,7 +71,7 @@ class Study(Base):
     json_data = Column(JSON)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
-    wearable_id = Column(Integer)
+    wearable_id = Column(BIGINT)
     accounts = relationship("Accounts")
 #  users many to many
 
@@ -190,7 +190,7 @@ class Db:
                 # update the fields
                 res.secret = state
                 res.updated_at = datetime.now(pytz.timezone('UTC')) # dt_string
-   
+
                 session.commit()
 
             pass

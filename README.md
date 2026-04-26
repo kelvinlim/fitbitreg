@@ -4,24 +4,23 @@ flask app for registration of fitbit user for sharing data
 
 Note: be sure to end url with a /
 
-e.g. https://lnpipapp2.med.umn.edu/fitbitrec/
+Production: deployed on `lnpitask0.med.umn.edu`, fronted by the local nginx on the same host. The container listens on 5010 and the app routes are mounted at `/` (APP_PATH is empty in `.env`); nginx strips the `/fitbitrec/` prefix when forwarding upstream.
 
-## Need config info on dockerfile
+## Build & run
 
 ```
 sudo podman build -t fitbitreg .
 
-sudo podman run -d -p 5010:5000 --restart unless-stopped fitbitreg
-
+sudo podman run -d --name fitbit -p 5010:5010 --restart unless-stopped fitbitreg
 ```
 
-## Need info on setting up reverse proxy
+## nginx reverse proxy
 
-nginx reverse proxy
+The trailing slash on `proxy_pass` is what makes nginx strip the `/fitbitrec/` location prefix before forwarding to the container (which mounts at `/`).
 
 ```
         location /fitbitrec/ {
-                proxy_pass http://127.0.0.1:5000;
+                proxy_pass http://10.88.0.1:5010/;
                 proxy_set_header Host $http_host;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Real-IP $remote_addr;
